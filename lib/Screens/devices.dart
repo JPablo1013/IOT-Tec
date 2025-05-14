@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:iot/Screens/camera.dart';
 import 'package:iot/Screens/control.dart';
-//import 'package:iot/Screens/camera.dart';
-import 'airesAcondicionados.dart'; // Asegúrate de que esta importación sea válida
+import 'package:iot/screens/airesAcondicionados.dart';
 import 'lab.dart'; // Importa tu screen de Laboratorios
 
 class DevicesScreen extends StatefulWidget {
-  const DevicesScreen({super.key});
+  final String username;
+
+  const DevicesScreen({super.key, required this.username});
 
   @override
   State<DevicesScreen> createState() => _DevicesScreenState();
@@ -66,20 +68,23 @@ class _DevicesScreenState extends State<DevicesScreen> {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const AiresScreeen()),
+                MaterialPageRoute(
+                  builder: (context) => AiresScreen(username: widget.username),
+                ),
               );
             },
           ),
           DeviceCard(
-            icon: Icons.videocam,
-            label: 'Cámara',
-            onTap: () {
-           //Navigator.push(
-            //context,
-          //MaterialPageRoute(builder: (context) => const CameraScreen()),
-        //);
-        },
-          ),
+          icon: Icons.videocam,
+          label: 'Cámara',
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const CameraScreen()),
+            );
+          },
+        ),
+
           DeviceCard(
             icon: Icons.lightbulb,
             label: 'Luces',
