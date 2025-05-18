@@ -1,0 +1,31 @@
+import 'package:flutter/material.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+
+class CameraViewScreen extends StatefulWidget {
+  final String cameraUrl;
+
+  const CameraViewScreen({super.key, required this.cameraUrl});
+
+  @override
+  State<CameraViewScreen> createState() => _CameraViewScreenState();
+}
+
+class _CameraViewScreenState extends State<CameraViewScreen> {
+  late final WebViewController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..loadRequest(Uri.parse(widget.cameraUrl));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Vista de Cámara")),
+      body: WebViewWidget(controller: _controller),
+    );
+  }
+}

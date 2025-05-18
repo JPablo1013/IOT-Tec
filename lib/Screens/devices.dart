@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:iot/Screens/camera.dart';
+//import 'package:iot/Screens/camera.dart';
 import 'package:iot/Screens/control.dart';
 import 'package:iot/screens/airesAcondicionados.dart';
 import 'lab.dart'; // Importa tu screen de Laboratorios
@@ -78,10 +78,10 @@ class _DevicesScreenState extends State<DevicesScreen> {
           icon: Icons.videocam,
           label: 'Cámara',
           onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const CameraScreen()),
-            );
+            //Navigator.push(
+              //context,
+              //MaterialPageRoute(builder: (context) => const CameraViewScreen(cameraUrl: 'http://192.168.1.37',)),
+            //);
           },
         ),
 
