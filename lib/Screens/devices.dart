@@ -100,11 +100,10 @@ class _DevicesScreenState extends State<DevicesScreen> {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const ControlScreen()),
+              MaterialPageRoute(builder: (context) => ControlScreen()),
             );
           },
         ),
-
         ],
       ),
     );

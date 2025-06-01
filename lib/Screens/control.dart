@@ -1,129 +1,155 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 class ControlScreen extends StatefulWidget {
-  const ControlScreen({Key? key}) : super(key: key);
+  const ControlScreen({super.key});
 
   @override
   State<ControlScreen> createState() => _ControlScreenState();
 }
 
 class _ControlScreenState extends State<ControlScreen> {
-  final String esp32Ip = 'http://192.168.1.36'; // Cambia esto si tu IP cambia
-  String mensaje = 'Selecciona un dispositivo para controlar';
-  String codigoHex = '';
-  String dispositivoSeleccionado = 'Televisión';
+  String? _selectedCategory;
+  String? _selectedDevice;
+  Map<String, dynamic> _devices = {};
+  final List<String> _categories = ['teles', 'aires', 'proyectores'];
 
-  final List<String> dispositivos = ['Televisión', 'Proyector', 'Aire acondicionado'];
+  @override
+  void initState() {
+    super.initState();
+    _loadDevices();
+  }
 
-  Future<void> enviarComando(String ruta) async {
-    final url = Uri.parse('$esp32Ip/$ruta');
-    try {
-      final res = await http.get(url);
+  Future<void> _loadDevices() async {
+    final url = Uri.parse(
+        'https://domotica-itc-dc7d4-default-rtdb.firebaseio.com/dispositivos.json');
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
       setState(() {
-        if (res.statusCode == 200) {
-          mensaje = '✅ Señal enviada a: $ruta';
-          final body = res.body;
-
-          // Buscar si hay un código hexadecimal en la respuesta
-          final regex = RegExp(r'0x[0-9A-Fa-f]+');
-          final match = regex.firstMatch(body);
-
-          if (match != null) {
-            codigoHex = '📥 Código recibido: ${match.group(0)}';
-          } else {
-            codigoHex = 'ℹ️ No se recibió código hexadecimal.';
-          }
-        } else {
-          mensaje = '⚠️ Error ${res.statusCode}';
-          codigoHex = '';
-        }
-      });
-    } catch (e) {
-      setState(() {
-        mensaje = '❌ Error de conexión: $e';
-        codigoHex = '';
+        _devices = json.decode(response.body) ?? {};
       });
     }
   }
 
-  Widget botonControl(String texto, IconData icono, String ruta) {
-    return ElevatedButton.icon(
-      onPressed: () => enviarComando(ruta),
-      icon: Icon(icono),
-      label: Text(texto),
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        textStyle: const TextStyle(fontSize: 16),
-      ),
-    );
-  }
+  Future<void> _activarEmision(
+      String categoria, String device, String buttonName, bool emitirActual) async {
+    if (emitirActual) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("La señal ya está activa para $buttonName")),
+      );
+      return;
+    }
 
-  Widget buildControlesTV() {
-    return Column(
-      children: [
-        botonControl('Encender / Apagar TV', Icons.power_settings_new, 'tv/power'),
-      ],
-    );
-  }
+    final url = Uri.parse(
+        'https://domotica-itc-dc7d4-default-rtdb.firebaseio.com/dispositivos/$categoria/$device/botones/$buttonName.json');
 
-  Widget buildControlesProyector() {
-    return Column(
-      children: [
-        botonControl('Encender / Apagar Proyector', Icons.power_settings_new, 'projector/power'),
-      ],
-    );
-  }
+    final responseTrue = await http.patch(url, body: json.encode({"emitir": true}));
+    if (responseTrue.statusCode == 200) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Señal activada para $buttonName")),
+      );
 
-  Widget buildControlesAC() {
-    return Column(
-      children: [
-        botonControl('Encender / Apagar AC', Icons.power_settings_new, 'ac/power'),
-      ],
-    );
-  }
+      await Future.delayed(const Duration(seconds: 5));
 
-  Widget buildControles() {
-    switch (dispositivoSeleccionado) {
-      case 'Televisión':
-        return buildControlesTV();
-      case 'Proyector':
-        return buildControlesProyector();
-      case 'Aire acondicionado':
-        return buildControlesAC();
-      default:
-        return const SizedBox.shrink();
+      await http.patch(url, body: json.encode({"emitir": false}));
+
+      _loadDevices();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error al activar señal para $buttonName")),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final selectedCategoryDevices = _selectedCategory != null
+        ? _devices[_selectedCategory] as Map<String, dynamic>?
+        : null;
+
+    final selectedDeviceButtons = _selectedCategory != null &&
+            _selectedDevice != null &&
+            selectedCategoryDevices?[_selectedDevice]?['botones'] != null
+        ? (selectedCategoryDevices![_selectedDevice]['botones']
+                as Map<String, dynamic>)
+            .entries
+            .toList()
+        : [];
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Control Remoto')),
+      appBar: AppBar(
+        title: const Text("Control de Dispositivos"),
+        backgroundColor: Colors.deepPurple,
+        foregroundColor: Colors.white,
+      ),
       body: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(mensaje, textAlign: TextAlign.left),
-            const SizedBox(height: 10),
-            Text(codigoHex, style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
             DropdownButton<String>(
-              value: dispositivoSeleccionado,
-              items: dispositivos
-                  .map((d) => DropdownMenuItem(value: d, child: Text(d)))
-                  .toList(),
+              value: _selectedCategory,
+              hint: const Text("Selecciona una categoría"),
+              items: _categories.map((cat) {
+                return DropdownMenuItem(
+                  value: cat,
+                  child: Text(cat.toUpperCase()),
+                );
+              }).toList(),
               onChanged: (value) {
                 setState(() {
-                  dispositivoSeleccionado = value!;
-                  mensaje = 'Control seleccionado: $value';
-                  codigoHex = '';
+                  _selectedCategory = value;
+                  _selectedDevice = null;
                 });
               },
             ),
+            const SizedBox(height: 10),
+            if (_selectedCategory != null)
+              DropdownButton<String>(
+                value: _selectedDevice,
+                hint: const Text("Selecciona un dispositivo"),
+                items: (selectedCategoryDevices?.keys.toList() ?? []).map((key) {
+                  return DropdownMenuItem<String>(
+                    value: key,
+                    child: Text(key),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedDevice = value;
+                  });
+                },
+              ),
             const SizedBox(height: 20),
-            buildControles(),
+            if (selectedDeviceButtons.isNotEmpty)
+              Expanded(
+                child: ListView.builder(
+                  itemCount: selectedDeviceButtons.length,
+                  itemBuilder: (context, index) {
+                    final entry = selectedDeviceButtons[index];
+                    final buttonName = entry.key;
+                    final buttonData = entry.value;
+                    final emitir = buttonData['emitir'] ?? false;
+                    final codigoIR = buttonData['codigo_ir'] ?? "";
+
+                    return ListTile(
+                      title: Text(buttonName),
+                      subtitle: Text("Código IR: $codigoIR"),
+                      trailing: emitir
+                          ? const Icon(Icons.wifi_tethering, color: Colors.red)
+                          : const Icon(Icons.wifi_tethering_off),
+                      onTap: () => _activarEmision(
+                        _selectedCategory!,
+                        _selectedDevice!,
+                        buttonName,
+                        emitir,
+                      ),
+                    );
+                  },
+                ),
+              )
+            else if (_selectedDevice != null)
+              const Text("No hay botones disponibles para este dispositivo."),
           ],
         ),
       ),
